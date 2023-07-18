@@ -228,12 +228,7 @@ static bool remove_migration_pte(struct folio *folio,
 			rmap_flags |= RMAP_EXCLUSIVE;
 
 		if (unlikely(is_device_private_page(new))) {
-			if (pte_write(pte))
-				entry = make_writable_device_private_entry(
-							page_to_pfn(new));
-			else
-				entry = make_readable_device_private_entry(
-							page_to_pfn(new));
+			entry = pte_write(pte) ? make_writable_device_private_entry(page_to_pfn(new)) : make_readable_device_private_entry(page_to_pfn(new));
 			pte = swp_entry_to_pte(entry);
 			if (pte_swp_soft_dirty(old_pte))
 				pte = pte_swp_mksoft_dirty(pte);
@@ -694,9 +689,7 @@ static bool buffer_migrate_lock_buffers(struct buffer_head *head,
 
 	do {
 		if (!trylock_buffer(bh)) {
-			if (mode == MIGRATE_ASYNC)
-				goto unlock;
-			if (mode == MIGRATE_SYNC_LIGHT && !buffer_uptodate(bh))
+			if (mode == MIGRATE_ASYNC || (mode == MIGRATE_SYNC_LIGHT && !buffer_uptodate(bh)))
 				goto unlock;
 			lock_buffer(bh);
 		}

@@ -196,18 +196,14 @@ again:
 
 			flush_cache_page(vma, addr, pte_pfn(pte));
 			anon_exclusive = PageAnon(page) && PageAnonExclusive(page);
-			if (anon_exclusive) {
-				pte = ptep_clear_flush(vma, addr, ptep);
 
-				if (page_try_share_anon_rmap(page)) {
-					set_pte_at(mm, addr, ptep, pte);
-					unlock_page(page);
-					put_page(page);
-					mpfn = 0;
-					goto next;
-				}
-			} else {
-				pte = ptep_get_and_clear(mm, addr, ptep);
+			pte = anon_exclusive ? ptep_clear_flush(vma, addr, ptep) : ptep_get_and_clear(mm, addr, ptep);
+			if (anon_exclusive && page_try_share_anon_rmap(page)) {
+				set_pte_at(mm, addr, ptep, pte);
+				unlock_page(page);
+				put_page(page);
+				mpfn = 0;
+				goto next;
 			}
 
 			migrate->cpages++;
@@ -233,16 +229,13 @@ again:
 					entry = make_migration_entry_dirty(entry);
 			}
 			swp_pte = swp_entry_to_pte(entry);
-			if (pte_present(pte)) {
-				if (pte_soft_dirty(pte))
-					swp_pte = pte_swp_mksoft_dirty(swp_pte);
-				if (pte_uffd_wp(pte))
-					swp_pte = pte_swp_mkuffd_wp(swp_pte);
-			} else {
-				if (pte_swp_soft_dirty(pte))
-					swp_pte = pte_swp_mksoft_dirty(swp_pte);
-				if (pte_swp_uffd_wp(pte))
-					swp_pte = pte_swp_mkuffd_wp(swp_pte);
+
+			if ((pte_present(pte) && pte_soft_dirty(pte)) || pte_swp_soft_dirty(pte)) {
+				swp_pte = pte_swp_mksoft_dirty(swp_pte);
+			}
+
+			if ((pte_present(pte) && pte_uffd_wp(pte)) || pte_swp_uffd_wp(pte)) {
+				swp_pte = pte_swp_mkuffd_wp(swp_pte);
 			}
 			set_pte_at(mm, addr, ptep, swp_pte);
 

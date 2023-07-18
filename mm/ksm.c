@@ -954,10 +954,7 @@ static int remove_stable_node_chain(struct ksm_stable_node *stable_node,
 
 	if (!is_stable_node_chain(stable_node)) {
 		VM_BUG_ON(is_stable_node_dup(stable_node));
-		if (remove_stable_node(stable_node))
-			return true;
-		else
-			return false;
+		return remove_stable_node(stable_node) ? true : false;
 	}
 
 	hlist_for_each_entry_safe(dup, hlist_safe,
